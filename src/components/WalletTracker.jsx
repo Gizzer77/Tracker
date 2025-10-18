@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { addTrackedWallet, removeTrackedWallet, getBlockchainColor } from '../services/api';
 import WalletManager from './WalletManager';
 
-const WalletTracker = ({ trackedWallets, onUpdate }) => {
+const WalletTracker = ({ trackedWallets, onUpdate, transactions = [] }) => {
   const [isAdding, setIsAdding] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState(new Set());
+  const [expandedWallets, setExpandedWallets] = useState(new Set());
   const [newWallet, setNewWallet] = useState({
     address: '',
     name: '',
@@ -12,10 +12,59 @@ const WalletTracker = ({ trackedWallets, onUpdate }) => {
   });
   const [error, setError] = useState('');
 
+  // Get all connections for a wallet (exchanges and other wallets)
+  const getWalletConnections = (wallet) => {
+    const connections = new Map();
+    const walletAddr = wallet.address.toLowerCase();
+
+    transactions.forEach(tx => {
+      const fromAddr = tx.from.address.toLowerCase();
+      const toAddr = tx.to.address.toLowerCase();
+
+      // Check if this wallet is involved in the transaction
+      if (fromAddr === walletAddr || toAddr === walletAddr) {
+        const otherAddr = fromAddr === walletAddr ? toAddr : fromAddr;
+        const otherOwner = fromAddr === walletAddr ? tx.to.owner : tx.from.owner;
+        const otherFullAddr = fromAddr === walletAddr ? tx.to.address : tx.from.address;
+
+        if (!connections.has(otherAddr)) {
+          connections.set(otherAddr, {
+            address: otherAddr,
+            fullAddress: otherFullAddr,
+            owner: otherOwner,
+            blockchain: tx.blockchain,
+            symbol: tx.symbol,
+            totalValue: 0,
+            transactionCount: 0,
+            isExchange: otherOwner !== 'unknown' && 
+              ['binance', 'coinbase', 'kraken', 'bitfinex', 'huobi', 'okx', 'bybit', 'kucoin', 'gemini', 'ftx'].some(ex => 
+                otherOwner.toLowerCase().includes(ex)
+              ),
+            transactions: []
+          });
+        }
+
+        const conn = connections.get(otherAddr);
+        conn.totalValue += tx.amount_usd;
+        conn.transactionCount += 1;
+        conn.transactions.push({
+          id: tx.id,
+          amount: tx.amount,
+          amount_usd: tx.amount_usd,
+          symbol: tx.symbol,
+          timestamp: tx.timestamp,
+          direction: fromAddr === walletAddr ? 'sent' : 'received'
+        });
+      }
+    });
+
+    return Array.from(connections.values())
+      .sort((a, b) => b.totalValue - a.totalValue);
+  };
+
   const handleAdd = () => {
     setError('');
     
-    // Validation
     if (!newWallet.address.trim()) {
       setError('Please enter a wallet address');
       return;
@@ -26,20 +75,17 @@ const WalletTracker = ({ trackedWallets, onUpdate }) => {
       return;
     }
 
-    // Basic address validation
     if (newWallet.address.length < 10) {
       setError('Invalid wallet address');
       return;
     }
 
-    // Add wallet
     addTrackedWallet(
       newWallet.address,
       newWallet.name,
       newWallet.blockchain
     );
 
-    // Reset form
     setNewWallet({ address: '', name: '', blockchain: 'ethereum' });
     setIsAdding(false);
     onUpdate();
@@ -55,7 +101,6 @@ const WalletTracker = ({ trackedWallets, onUpdate }) => {
     if (window.confirm(message)) {
       removeTrackedWallet(id);
       
-      // If parent, also remove children
       if (wallet.isParent && wallet.children) {
         wallet.children.forEach(childId => {
           removeTrackedWallet(childId);
@@ -66,17 +111,35 @@ const WalletTracker = ({ trackedWallets, onUpdate }) => {
     }
   };
 
-  const toggleGroup = (groupId) => {
-    const newExpanded = new Set(expandedGroups);
-    if (newExpanded.has(groupId)) {
-      newExpanded.delete(groupId);
+  const toggleWallet = (walletId) => {
+    const newExpanded = new Set(expandedWallets);
+    if (newExpanded.has(walletId)) {
+      newExpanded.delete(walletId);
     } else {
-      newExpanded.add(groupId);
+      newExpanded.add(walletId);
     }
-    setExpandedGroups(newExpanded);
+    setExpandedWallets(newExpanded);
   };
 
-  // Organize wallets into groups
+  const formatValue = (num) => {
+    if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+    if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
+    return num.toFixed(2);
+  };
+
+  const formatTime = (timestamp) => {
+    const date = new Date(timestamp * 1000);
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  // Organize wallets
   const parentWallets = trackedWallets.filter(w => w.isParent);
   const childWallets = trackedWallets.filter(w => w.isChild);
   const standaloneWallets = trackedWallets.filter(w => !w.isParent && !w.isChild);
@@ -140,10 +203,13 @@ const WalletTracker = ({ trackedWallets, onUpdate }) => {
         </div>
       ) : (
         <div className="tracked-wallets-list">
-          {/* Parent Groups (from map tracking) */}
+          {/* Parent Groups */}
           {parentWallets.map(parent => {
             const children = childWallets.filter(c => c.parentId === parent.id);
-            const isExpanded = expandedGroups.has(parent.id);
+            const isExpanded = expandedWallets.has(parent.id);
+            const connections = getWalletConnections(parent);
+            const exchanges = connections.filter(c => c.isExchange);
+            const wallets = connections.filter(c => !c.isExchange);
             
             return (
               <div key={parent.id} className="wallet-group">
@@ -152,7 +218,7 @@ const WalletTracker = ({ trackedWallets, onUpdate }) => {
                     <div className="wallet-name">
                       <button 
                         className="expand-btn"
-                        onClick={() => toggleGroup(parent.id)}
+                        onClick={() => toggleWallet(parent.id)}
                       >
                         {isExpanded ? '▼' : '▶'}
                       </button>
@@ -164,8 +230,13 @@ const WalletTracker = ({ trackedWallets, onUpdate }) => {
                         {parent.blockchain.toUpperCase()}
                       </span>
                       <span className="group-badge">
-                        {children.length} connected
+                        {children.length} grouped
                       </span>
+                      {connections.length > 0 && (
+                        <span className="connections-badge">
+                          🔗 {connections.length} connections
+                        </span>
+                      )}
                     </div>
                     <div className="wallet-address">
                       {parent.address.substring(0, 20)}...
@@ -180,11 +251,13 @@ const WalletTracker = ({ trackedWallets, onUpdate }) => {
                 </div>
                 
                 {isExpanded && (
-                  <div className="children-wallets">
-                    {children.map(child => (
-                      <div key={child.id} className="tracked-wallet-item child-wallet">
-                        <div className="wallet-info">
-                          <div className="wallet-name">
+                  <div className="wallet-expansion-area">
+                    {/* Child Wallets */}
+                    {children.length > 0 && (
+                      <div className="children-section">
+                        <div className="expansion-section-title">📂 Grouped Wallets</div>
+                        {children.map(child => (
+                          <div key={child.id} className="child-wallet-mini">
                             <span className="child-indicator">└─</span>
                             <strong>{child.name}</strong>
                             <span 
@@ -193,44 +266,236 @@ const WalletTracker = ({ trackedWallets, onUpdate }) => {
                             >
                               {child.blockchain.toUpperCase()}
                             </span>
+                            <code className="mini-address-inline">
+                              {child.address.substring(0, 10)}...
+                            </code>
                           </div>
-                          <div className="wallet-address">
-                            {child.address.substring(0, 20)}...
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+
+                    {/* Connections */}
+                    {connections.length > 0 && (
+                      <div className="connections-area">
+                        {/* Exchanges */}
+                        {exchanges.length > 0 && (
+                          <div className="connections-section">
+                            <div className="expansion-section-title">
+                              🏢 Connected Exchanges ({exchanges.length})
+                            </div>
+                            {exchanges.map((conn, idx) => (
+                              <div key={idx} className="connection-card exchange-connection">
+                                <div className="conn-header">
+                                  <span className="conn-icon">🏦</span>
+                                  <strong>{conn.owner}</strong>
+                                  <div className="conn-badges">
+                                    <span className="mini-badge txs">{conn.transactionCount} txs</span>
+                                    <span className="mini-badge value">${formatValue(conn.totalValue)}</span>
+                                  </div>
+                                </div>
+                                <code className="conn-address">{conn.fullAddress.substring(0, 16)}...{conn.fullAddress.substring(conn.fullAddress.length - 8)}</code>
+                                <div className="recent-activity">
+                                  {conn.transactions.slice(0, 2).map((tx, txIdx) => (
+                                    <div key={txIdx} className="activity-line">
+                                      <span className={`activity-icon ${tx.direction}`}>
+                                        {tx.direction === 'sent' ? '📤' : '📥'}
+                                      </span>
+                                      <span className="activity-amount">{formatValue(tx.amount)} {tx.symbol}</span>
+                                      <span className="activity-value">${formatValue(tx.amount_usd)}</span>
+                                      <span className="activity-time">{formatTime(tx.timestamp)}</span>
+                                    </div>
+                                  ))}
+                                  {conn.transactions.length > 2 && (
+                                    <div className="more-activity">+{conn.transactions.length - 2} more</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Other Wallets */}
+                        {wallets.length > 0 && (
+                          <div className="connections-section">
+                            <div className="expansion-section-title">
+                              💼 Connected Wallets ({wallets.length})
+                            </div>
+                            {wallets.map((conn, idx) => (
+                              <div key={idx} className="connection-card wallet-connection">
+                                <div className="conn-header">
+                                  <span className="conn-icon">👤</span>
+                                  <strong>{conn.owner !== 'unknown' ? conn.owner : 'Private Wallet'}</strong>
+                                  <div className="conn-badges">
+                                    <span className="mini-badge txs">{conn.transactionCount} txs</span>
+                                    <span className="mini-badge value">${formatValue(conn.totalValue)}</span>
+                                  </div>
+                                </div>
+                                <code className="conn-address">{conn.fullAddress.substring(0, 16)}...{conn.fullAddress.substring(conn.fullAddress.length - 8)}</code>
+                                <div className="recent-activity">
+                                  {conn.transactions.slice(0, 2).map((tx, txIdx) => (
+                                    <div key={txIdx} className="activity-line">
+                                      <span className={`activity-icon ${tx.direction}`}>
+                                        {tx.direction === 'sent' ? '📤' : '📥'}
+                                      </span>
+                                      <span className="activity-amount">{formatValue(tx.amount)} {tx.symbol}</span>
+                                      <span className="activity-value">${formatValue(tx.amount_usd)}</span>
+                                      <span className="activity-time">{formatTime(tx.timestamp)}</span>
+                                    </div>
+                                  ))}
+                                  {conn.transactions.length > 2 && (
+                                    <div className="more-activity">+{conn.transactions.length - 2} more</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {connections.length === 0 && (
+                      <div className="no-connections">
+                        No connections found in current transactions
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             );
           })}
 
-          {/* Standalone Wallets */}
-          {standaloneWallets.map(wallet => (
-            <div key={wallet.id} className="tracked-wallet-item">
-              <div className="wallet-info">
-                <div className="wallet-name">
-                  <strong>{wallet.name}</strong>
-                  <span 
-                    className="wallet-chain-badge"
-                    style={{ backgroundColor: getBlockchainColor(wallet.blockchain) }}
+          {/* Standalone Wallets with Inline Connections */}
+          {standaloneWallets.map(wallet => {
+            const isExpanded = expandedWallets.has(wallet.id);
+            const connections = getWalletConnections(wallet);
+            const exchanges = connections.filter(c => c.isExchange);
+            const wallets = connections.filter(c => !c.isExchange);
+
+            return (
+              <div key={wallet.id} className="wallet-group">
+                <div className="tracked-wallet-item standalone-wallet">
+                  <div className="wallet-info">
+                    <div className="wallet-name">
+                      <button 
+                        className="expand-btn"
+                        onClick={() => toggleWallet(wallet.id)}
+                      >
+                        {isExpanded ? '▼' : '▶'}
+                      </button>
+                      <strong>{wallet.name}</strong>
+                      <span 
+                        className="wallet-chain-badge"
+                        style={{ backgroundColor: getBlockchainColor(wallet.blockchain) }}
+                      >
+                        {wallet.blockchain.toUpperCase()}
+                      </span>
+                      {connections.length > 0 && (
+                        <span className="connections-badge">
+                          🔗 {connections.length} connections
+                        </span>
+                      )}
+                    </div>
+                    <div className="wallet-address">
+                      {wallet.address.substring(0, 20)}...
+                    </div>
+                  </div>
+                  <button 
+                    className="remove-wallet-btn"
+                    onClick={() => handleRemove(wallet.id, wallet)}
                   >
-                    {wallet.blockchain.toUpperCase()}
-                  </span>
+                    🗑️
+                  </button>
                 </div>
-                <div className="wallet-address">
-                  {wallet.address.substring(0, 20)}...
-                </div>
+
+                {/* Expanded View with Connections */}
+                {isExpanded && (
+                  <div className="wallet-expansion-area">
+                    {connections.length > 0 ? (
+                      <div className="connections-area">
+                        {/* Exchanges */}
+                        {exchanges.length > 0 && (
+                          <div className="connections-section">
+                            <div className="expansion-section-title">
+                              🏢 Connected Exchanges ({exchanges.length})
+                            </div>
+                            {exchanges.map((conn, idx) => (
+                              <div key={idx} className="connection-card exchange-connection">
+                                <div className="conn-header">
+                                  <span className="conn-icon">🏦</span>
+                                  <strong>{conn.owner}</strong>
+                                  <div className="conn-badges">
+                                    <span className="mini-badge txs">{conn.transactionCount} txs</span>
+                                    <span className="mini-badge value">${formatValue(conn.totalValue)}</span>
+                                  </div>
+                                </div>
+                                <code className="conn-address">{conn.fullAddress.substring(0, 16)}...{conn.fullAddress.substring(conn.fullAddress.length - 8)}</code>
+                                <div className="recent-activity">
+                                  {conn.transactions.slice(0, 2).map((tx, txIdx) => (
+                                    <div key={txIdx} className="activity-line">
+                                      <span className={`activity-icon ${tx.direction}`}>
+                                        {tx.direction === 'sent' ? '📤' : '📥'}
+                                      </span>
+                                      <span className="activity-amount">{formatValue(tx.amount)} {tx.symbol}</span>
+                                      <span className="activity-value">${formatValue(tx.amount_usd)}</span>
+                                      <span className="activity-time">{formatTime(tx.timestamp)}</span>
+                                    </div>
+                                  ))}
+                                  {conn.transactions.length > 2 && (
+                                    <div className="more-activity">+{conn.transactions.length - 2} more</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Other Wallets */}
+                        {wallets.length > 0 && (
+                          <div className="connections-section">
+                            <div className="expansion-section-title">
+                              💼 Connected Wallets ({wallets.length})
+                            </div>
+                            {wallets.map((conn, idx) => (
+                              <div key={idx} className="connection-card wallet-connection">
+                                <div className="conn-header">
+                                  <span className="conn-icon">👤</span>
+                                  <strong>{conn.owner !== 'unknown' ? conn.owner : 'Private Wallet'}</strong>
+                                  <div className="conn-badges">
+                                    <span className="mini-badge txs">{conn.transactionCount} txs</span>
+                                    <span className="mini-badge value">${formatValue(conn.totalValue)}</span>
+                                  </div>
+                                </div>
+                                <code className="conn-address">{conn.fullAddress.substring(0, 16)}...{conn.fullAddress.substring(conn.fullAddress.length - 8)}</code>
+                                <div className="recent-activity">
+                                  {conn.transactions.slice(0, 2).map((tx, txIdx) => (
+                                    <div key={txIdx} className="activity-line">
+                                      <span className={`activity-icon ${tx.direction}`}>
+                                        {tx.direction === 'sent' ? '📤' : '📥'}
+                                      </span>
+                                      <span className="activity-amount">{formatValue(tx.amount)} {tx.symbol}</span>
+                                      <span className="activity-value">${formatValue(tx.amount_usd)}</span>
+                                      <span className="activity-time">{formatTime(tx.timestamp)}</span>
+                                    </div>
+                                  ))}
+                                  {conn.transactions.length > 2 && (
+                                    <div className="more-activity">+{conn.transactions.length - 2} more</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="no-connections">
+                        No connections found in current transactions
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <button 
-                className="remove-wallet-btn"
-                onClick={() => handleRemove(wallet.id, wallet)}
-              >
-                🗑️
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

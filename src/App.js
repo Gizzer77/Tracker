@@ -1,379 +1,257 @@
-// API Service for fetching whale transactions
-const WHALE_ALERT_API = 'https://api.whale-alert.io/v1/transactions';
+import React, { useState, useEffect } from 'react';
+import { fetchWhaleTransactions, getTrackedWallets } from './services/api';
+import TransactionCard from './components/TransactionCard';
+import FilterBar from './components/FilterBar';
+import Stats from './components/Stats';
+import WalletTracker from './components/WalletTracker';
+import MarketInsights from './components/MarketInsights';
+import ActiveWallets from './components/ActiveWallets';
+import WalletNetworkMap from './components/WalletNetworkMap';
+import WalletHistory from './components/WalletHistory';
 
-// IMPORTANT: Set your API key here
-const WHALE_ALERT_KEY = ''; // Get free key from https://whale-alert.io/
-const DEMO_MODE = WHALE_ALERT_KEY === ''; // Auto-detect demo mode
+function App() {
+  const [transactions, setTransactions] = useState([]);
+  const [filteredTransactions, setFilteredTransactions] = useState([]);
+  const [trackedWallets, setTrackedWallets] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [mode, setMode] = useState('demo');
+  const [activeTab, setActiveTab] = useState('live'); // 'live', 'network', 'history'
+  const [filters, setFilters] = useState({
+    blockchain: 'all',
+    minAmount: 500000,
+    trackedOnly: false
+  });
 
-// Wallet Tracking Storage (localStorage)
-const TRACKED_WALLETS_KEY = 'tracked_wallets';
+  // Load tracked wallets on mount
+  useEffect(() => {
+    loadTrackedWallets();
+  }, []);
 
-// Get tracked wallets from storage
-export const getTrackedWallets = () => {
-  try {
-    const stored = localStorage.getItem(TRACKED_WALLETS_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch (error) {
-    console.error('Error loading tracked wallets:', error);
-    return [];
-  }
-};
+  // Load transactions on mount and set up auto-refresh
+  useEffect(() => {
+    loadTransactions();
+    const interval = setInterval(() => {
+      loadTransactions();
+    }, 30000); // Refresh every 30 seconds
 
-// Save tracked wallets to storage
-export const saveTrackedWallets = (wallets) => {
-  try {
-    localStorage.setItem(TRACKED_WALLETS_KEY, JSON.stringify(wallets));
-    return true;
-  } catch (error) {
-    console.error('Error saving tracked wallets:', error);
-    return false;
-  }
-};
+    return () => clearInterval(interval);
+  }, []);
 
-// Add a wallet to tracking
-export const addTrackedWallet = (address, name, blockchain) => {
-  const wallets = getTrackedWallets();
-  const newWallet = {
-    id: Date.now().toString(),
-    address: address.toLowerCase(),
-    name,
-    blockchain,
-    addedAt: Date.now()
+  // Apply filters whenever transactions, filters, or tracked wallets change
+  useEffect(() => {
+    applyFilters();
+  }, [transactions, filters, trackedWallets]);
+
+  const loadTrackedWallets = () => {
+    const wallets = getTrackedWallets();
+    setTrackedWallets(wallets);
   };
-  wallets.push(newWallet);
-  saveTrackedWallets(wallets);
-  return newWallet;
-};
 
-// Remove a wallet from tracking
-export const removeTrackedWallet = (id) => {
-  const wallets = getTrackedWallets();
-  const filtered = wallets.filter(w => w.id !== id);
-  saveTrackedWallets(filtered);
-  return filtered;
-};
+  const loadTransactions = async () => {
+    setIsLoading(true);
+    setError(null);
 
-// Check if address is tracked
-export const isWalletTracked = (address) => {
-  const wallets = getTrackedWallets();
-  return wallets.find(w => w.address.toLowerCase() === address.toLowerCase());
-};
+    const result = await fetchWhaleTransactions(filters.minAmount);
 
-// Get wallet name if tracked
-export const getWalletName = (address) => {
-  const wallet = isWalletTracked(address);
-  return wallet ? wallet.name : null;
-};
-
-// Generate demo transactions for testing
-const generateDemoTransaction = () => {
-  const blockchains = ['bitcoin', 'ethereum', 'tron', 'ripple', 'polygon'];
-  const blockchain = blockchains[Math.floor(Math.random() * blockchains.length)];
-  const amount = Math.floor(Math.random() * 50000000) + 500000;
-  const symbols = {
-    bitcoin: 'BTC',
-    ethereum: 'ETH',
-    tron: 'TRX',
-    ripple: 'XRP',
-    polygon: 'MATIC'
-  };
-  
-  const knownWallets = [
-    '0x742d35cc6634c0532925a3b844bc9e7595f0beb',
-    '0x28c6c06298d514db089934071355e5743bf21d60',
-    '0xdfd5293d8e347dfe59e90efd55b2956a1343963d',
-  ];
-  
-  const fromAddr = Math.random() > 0.7 ? knownWallets[Math.floor(Math.random() * knownWallets.length)] : `0x${Math.random().toString(16).substr(2, 40)}`;
-  const toAddr = Math.random() > 0.7 ? knownWallets[Math.floor(Math.random() * knownWallets.length)] : `0x${Math.random().toString(16).substr(2, 40)}`;
-  
-  const exchanges = ['Binance', 'Coinbase', 'Kraken', 'Bitfinex', 'Huobi'];
-  const randomExchange = exchanges[Math.floor(Math.random() * exchanges.length)];
-  
-  const useExchangeFrom = Math.random() > 0.6;
-  const useExchangeTo = Math.random() > 0.6;
-  
-  return {
-    id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    blockchain: blockchain,
-    symbol: symbols[blockchain],
-    amount: amount,
-    amount_usd: amount * (Math.random() * 100 + 50),
-    timestamp: Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 3600),
-    hash: `0x${Math.random().toString(16).substr(2, 64)}`,
-    from: {
-      address: fromAddr,
-      owner: useExchangeFrom ? randomExchange : 'unknown'
-    },
-    to: {
-      address: toAddr,
-      owner: useExchangeTo ? randomExchange : 'unknown'
-    },
-    transaction_type: Math.random() > 0.5 ? 'transfer' : 'exchange_deposit'
-  };
-};
-
-// Fetch whale transactions
-export const fetchWhaleTransactions = async (minValue = 500000) => {
-  if (DEMO_MODE) {
-    // Return demo data with more transactions
-    return {
-      success: true,
-      transactions: Array.from({ length: 25 }, () => generateDemoTransaction()),
-      mode: 'demo'
-    };
-  }
-
-  try {
-    // Real API usage with Whale Alert
-    const now = Math.floor(Date.now() / 1000);
-    const start = now - 3600; // Last hour
-    
-    const response = await fetch(
-      `${WHALE_ALERT_API}?api_key=${WHALE_ALERT_KEY}&start=${start}&min_value=${minValue}`
-    );
-    
-    if (!response.ok) {
-      throw new Error('API request failed');
-    }
-    
-    const data = await response.json();
-    
-    return {
-      success: true,
-      transactions: data.transactions || [],
-      mode: 'live'
-    };
-  } catch (error) {
-    console.error('Error fetching transactions:', error);
-    return {
-      success: false,
-      error: error.message,
-      mode: 'error'
-    };
-  }
-};
-
-// Format large numbers
-export const formatNumber = (num) => {
-  if (num >= 1000000000) {
-    return (num / 1000000000).toFixed(2) + 'B';
-  }
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(2) + 'M';
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(2) + 'K';
-  }
-  return num.toFixed(2);
-};
-
-// Format timestamp to readable date
-export const formatTime = (timestamp) => {
-  const date = new Date(timestamp * 1000);
-  const now = new Date();
-  const diff = Math.floor((now - date) / 1000);
-
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-};
-
-// Get blockchain icon color
-export const getBlockchainColor = (blockchain) => {
-  const colors = {
-    bitcoin: '#f7931a',
-    ethereum: '#627eea',
-    tron: '#eb0029',
-    ripple: '#23292f',
-    polygon: '#8247e5',
-    default: '#6b7280'
-  };
-  return colors[blockchain] || colors.default;
-};
-
-// Analyze transaction and provide description
-export const analyzeTransaction = (transaction) => {
-  const { from, to, amount_usd } = transaction;
-  
-  const isFromExchange = from.owner !== 'unknown' && 
-    ['binance', 'coinbase', 'kraken', 'bitfinex', 'huobi'].some(ex => 
-      from.owner.toLowerCase().includes(ex)
-    );
-  
-  const isToExchange = to.owner !== 'unknown' && 
-    ['binance', 'coinbase', 'kraken', 'bitfinex', 'huobi'].some(ex => 
-      to.owner.toLowerCase().includes(ex)
-    );
-
-  const amountStr = `$${formatNumber(amount_usd)}`;
-  
-  let description = '';
-  let signal = 'neutral';
-  let icon = '🔄';
-
-  // Analyze transaction patterns
-  if (isFromExchange && !isToExchange) {
-    // Withdrawal from exchange
-    description = `${amountStr} withdrawn from ${from.owner} to private wallet. This often indicates accumulation and potential bullish sentiment - whales are moving assets to cold storage for long-term holding.`;
-    signal = 'bullish';
-    icon = '📤';
-  } else if (!isFromExchange && isToExchange) {
-    // Deposit to exchange
-    description = `${amountStr} deposited to ${to.owner}. This could signal selling pressure - whales often move assets to exchanges before selling. Watch for potential bearish pressure.`;
-    signal = 'bearish';
-    icon = '📥';
-  } else if (isFromExchange && isToExchange) {
-    // Exchange to exchange
-    description = `${amountStr} transferred between exchanges (${from.owner} → ${to.owner}). This might indicate arbitrage trading, portfolio rebalancing, or preparation for large trades.`;
-    signal = 'neutral';
-    icon = '🔀';
-  } else {
-    // Wallet to wallet
-    description = `${amountStr} transferred between private wallets. This could be internal movement, OTC deals, or whales consolidating/splitting positions. Pattern suggests accumulation or distribution.`;
-    signal = 'neutral';
-    icon = '💼';
-  }
-
-  return {
-    description,
-    signal,
-    icon,
-    shortSummary: getSummary(transaction, isFromExchange, isToExchange)
-  };
-};
-
-// Get short summary for transaction
-const getSummary = (tx, isFromExchange, isToExchange) => {
-  if (isFromExchange && !isToExchange) return 'Whale Accumulation';
-  if (!isFromExchange && isToExchange) return 'Potential Sell Pressure';
-  if (isFromExchange && isToExchange) return 'Exchange Transfer';
-  return 'Whale Movement';
-};
-
-// Analyze multiple transactions and provide market insights
-export const analyzeMarketActivity = (transactions) => {
-  if (transactions.length === 0) return null;
-
-  let exchangeDeposits = 0;
-  let exchangeWithdrawals = 0;
-  let totalDepositValue = 0;
-  let totalWithdrawalValue = 0;
-  let walletToWallet = 0;
-
-  transactions.forEach(tx => {
-    const analysis = analyzeTransaction(tx);
-    
-    if (analysis.shortSummary === 'Potential Sell Pressure') {
-      exchangeDeposits++;
-      totalDepositValue += tx.amount_usd;
-    } else if (analysis.shortSummary === 'Whale Accumulation') {
-      exchangeWithdrawals++;
-      totalWithdrawalValue += tx.amount_usd;
+    if (result.success) {
+      setTransactions(result.transactions);
+      setMode(result.mode);
     } else {
-      walletToWallet++;
+      setError(result.error);
     }
-  });
 
-  // Calculate sentiment
-  const netFlow = totalWithdrawalValue - totalDepositValue;
-  let sentiment = 'NEUTRAL';
-  let sentimentIcon = '⚖️';
-  let interpretation = '';
+    setIsLoading(false);
+  };
 
-  if (netFlow > 10000000) {
-    sentiment = 'BULLISH';
-    sentimentIcon = '🟢';
-    interpretation = 'Strong accumulation detected. Whales are withdrawing significantly more from exchanges than depositing, suggesting confidence and long-term holding intent.';
-  } else if (netFlow < -10000000) {
-    sentiment = 'BEARISH';
-    sentimentIcon = '🔴';
-    interpretation = 'Increased selling pressure. More assets flowing to exchanges than withdrawing, which often precedes price drops as whales prepare to sell.';
-  } else {
-    interpretation = 'Market showing balanced activity. No clear directional bias from whale movements at this time.';
-  }
+  const applyFilters = () => {
+    let filtered = [...transactions];
 
-  return {
-    sentiment,
-    sentimentIcon,
-    interpretation,
-    stats: {
-      exchangeDeposits,
-      exchangeWithdrawals,
-      totalDepositValue,
-      totalWithdrawalValue,
-      netFlow: Math.abs(netFlow),
-      netFlowDirection: netFlow > 0 ? 'OUT OF EXCHANGES' : 'INTO EXCHANGES',
-      walletToWallet
+    // Filter by blockchain
+    if (filters.blockchain !== 'all') {
+      filtered = filtered.filter(tx => tx.blockchain === filters.blockchain);
+    }
+
+    // Filter by minimum amount
+    filtered = filtered.filter(tx => tx.amount_usd >= filters.minAmount);
+
+    // Filter by tracked wallets only
+    if (filters.trackedOnly && trackedWallets.length > 0) {
+      const trackedAddresses = trackedWallets.map(w => w.address.toLowerCase());
+      filtered = filtered.filter(tx =>
+        trackedAddresses.includes(tx.from.address.toLowerCase()) ||
+        trackedAddresses.includes(tx.to.address.toLowerCase())
+      );
+    }
+
+    setFilteredTransactions(filtered);
+  };
+
+  const handleClearTransactions = () => {
+    if (window.confirm('Clear all transactions? This will reset the data.')) {
+      setTransactions([]);
+      setFilteredTransactions([]);
     }
   };
-};
 
-// Add a wallet group (parent with connected wallets)
-export const addWalletGroup = (parentWallet, connectedWallets) => {
-  const wallets = getTrackedWallets();
-  
-  // Add parent wallet
-  const parentId = Date.now().toString();
-  const parent = {
-    id: parentId,
-    address: parentWallet.address.toLowerCase(),
-    name: parentWallet.name,
-    blockchain: parentWallet.blockchain,
-    addedAt: Date.now(),
-    isParent: true,
-    children: []
-  };
-  
-  // Add connected wallets as children
-  connectedWallets.forEach((child, index) => {
-    const childId = `${parentId}_child_${index}`;
-    const childWallet = {
-      id: childId,
-      address: child.address.toLowerCase(),
-      name: child.name,
-      blockchain: child.blockchain,
-      addedAt: Date.now(),
-      parentId: parentId,
-      isChild: true
-    };
-    wallets.push(childWallet);
-    parent.children.push(childId);
-  });
-  
-  wallets.push(parent);
-  saveTrackedWallets(wallets);
-  return parent;
-};
+  return (
+    <div className="app">
+      <header className="app-header">
+        <div className="header-content">
+          <h1>🐋 Crypto Whale Tracker</h1>
+          <p>Real-time monitoring of large cryptocurrency transactions</p>
+          {mode === 'demo' && (
+            <div className="demo-notice">
+              ⚠️ DEMO MODE - Using simulated data. Add your API key in src/services/api.js for live data.
+            </div>
+          )}
+          {mode === 'live' && (
+            <div className="live-notice">
+              ✅ LIVE MODE - Tracking real whale transactions from Whale Alert API
+            </div>
+          )}
+        </div>
+      </header>
 
-// Calculate wallet holdings from transactions
-export const calculateWalletHoldings = (walletAddress, transactions) => {
-  const holdings = {};
-  const addr = walletAddress.toLowerCase();
-  
-  transactions.forEach(tx => {
-    const isReceiving = tx.to.address.toLowerCase() === addr;
-    const isSending = tx.from.address.toLowerCase() === addr;
-    
-    if (!holdings[tx.symbol]) {
-      holdings[tx.symbol] = {
-        symbol: tx.symbol,
-        blockchain: tx.blockchain,
-        amount: 0,
-        valueUSD: 0
-      };
-    }
-    
-    if (isReceiving) {
-      holdings[tx.symbol].amount += tx.amount;
-      holdings[tx.symbol].valueUSD += tx.amount_usd;
-    }
-    if (isSending) {
-      holdings[tx.symbol].amount -= tx.amount;
-      holdings[tx.symbol].valueUSD -= tx.amount_usd;
-    }
-  });
-  
-  return Object.values(holdings).filter(h => h.amount > 0);
-};
+      <div className="container">
+        {/* Tab Navigation */}
+        <div className="tab-navigation">
+          <button 
+            className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`}
+            onClick={() => setActiveTab('live')}
+          >
+            🔴 Live Transactions
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'network' ? 'active' : ''}`}
+            onClick={() => setActiveTab('network')}
+          >
+            🗺️ Network Map
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            📊 Wallet Analytics
+          </button>
+        </div>
+
+        {/* Wallet Tracker - NOW WITH TRANSACTIONS PROP */}
+        <WalletTracker
+          trackedWallets={trackedWallets}
+          onUpdate={loadTrackedWallets}
+          transactions={transactions}
+        />
+
+        {/* Active Wallets Widget */}
+        <ActiveWallets
+          trackedWallets={trackedWallets}
+          transactions={filteredTransactions}
+        />
+
+        {/* Live Transactions Tab */}
+        {activeTab === 'live' && (
+          <>
+            {/* Filter Bar */}
+            <FilterBar
+              filters={filters}
+              setFilters={setFilters}
+              onRefresh={loadTransactions}
+              isLoading={isLoading}
+            />
+
+            {/* Loading State */}
+            {isLoading && (
+              <div className="loading">
+                <div className="spinner"></div>
+                <p>Loading whale transactions...</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && (
+              <div className="error-message">
+                ❌ Error: {error}
+              </div>
+            )}
+
+            {/* Data Display */}
+            {!isLoading && !error && (
+              <>
+                {/* Market Insights */}
+                <MarketInsights transactions={filteredTransactions} />
+
+                {/* Stats */}
+                <Stats transactions={filteredTransactions} />
+
+                {/* Transactions Section */}
+                <div className="transactions-section">
+                  <div className="section-header">
+                    <h2>Recent Whale Transactions</h2>
+                    <div className="header-actions">
+                      <span className="transaction-count">
+                        {filteredTransactions.length} transactions
+                      </span>
+                      <button
+                        className="clear-transactions-btn"
+                        onClick={handleClearTransactions}
+                        disabled={transactions.length === 0}
+                      >
+                        🗑️ Clear All
+                      </button>
+                    </div>
+                  </div>
+
+                  {filteredTransactions.length === 0 ? (
+                    <div className="no-data">
+                      No transactions found matching your filters.
+                    </div>
+                  ) : (
+                    <div className="transactions-grid">
+                      {filteredTransactions.map(tx => (
+                        <TransactionCard key={tx.id} transaction={tx} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* Network Map Tab */}
+        {activeTab === 'network' && (
+          <WalletNetworkMap
+            transactions={transactions}
+            trackedWallets={trackedWallets}
+            onWalletUpdate={loadTrackedWallets}
+          />
+        )}
+
+        {/* Wallet History Tab */}
+        {activeTab === 'history' && (
+          <WalletHistory
+            transactions={transactions}
+            trackedWallets={trackedWallets}
+          />
+        )}
+      </div>
+
+      <footer className="app-footer">
+        <p>
+          Built with React • Data from{' '}
+          <a href="https://whale-alert.io" target="_blank" rel="noopener noreferrer">
+            Whale Alert
+          </a>
+        </p>
+        <p className="api-note">
+          {mode === 'demo'
+            ? 'Demo mode active - Get a free API key to track real whale movements!'
+            : 'Tracking live whale transactions across major blockchains'}
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+export default App;

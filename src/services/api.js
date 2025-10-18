@@ -207,7 +207,7 @@ export const analyzeTransaction = (transaction) => {
       to.owner.toLowerCase().includes(ex)
     );
 
-  const amountStr = `$${formatNumber(amount_usd)}`;
+  const amountStr = `${formatNumber(amount_usd)}`;
   
   let description = '';
   let signal = 'neutral';
@@ -345,4 +345,35 @@ export const addWalletGroup = (parentWallet, connectedWallets) => {
   wallets.push(parent);
   saveTrackedWallets(wallets);
   return parent;
+};
+
+// Calculate wallet holdings from transactions
+export const calculateWalletHoldings = (walletAddress, transactions) => {
+  const holdings = {};
+  const addr = walletAddress.toLowerCase();
+  
+  transactions.forEach(tx => {
+    const isReceiving = tx.to.address.toLowerCase() === addr;
+    const isSending = tx.from.address.toLowerCase() === addr;
+    
+    if (!holdings[tx.symbol]) {
+      holdings[tx.symbol] = {
+        symbol: tx.symbol,
+        blockchain: tx.blockchain,
+        amount: 0,
+        valueUSD: 0
+      };
+    }
+    
+    if (isReceiving) {
+      holdings[tx.symbol].amount += tx.amount;
+      holdings[tx.symbol].valueUSD += tx.amount_usd;
+    }
+    if (isSending) {
+      holdings[tx.symbol].amount -= tx.amount;
+      holdings[tx.symbol].valueUSD -= tx.amount_usd;
+    }
+  });
+  
+  return Object.values(holdings).filter(h => h.amount > 0);
 };
