@@ -309,3 +309,40 @@ export const analyzeMarketActivity = (transactions) => {
     }
   };
 };
+
+// Add a wallet group (parent with connected wallets)
+export const addWalletGroup = (parentWallet, connectedWallets) => {
+  const wallets = getTrackedWallets();
+  
+  // Add parent wallet
+  const parentId = Date.now().toString();
+  const parent = {
+    id: parentId,
+    address: parentWallet.address.toLowerCase(),
+    name: parentWallet.name,
+    blockchain: parentWallet.blockchain,
+    addedAt: Date.now(),
+    isParent: true,
+    children: []
+  };
+  
+  // Add connected wallets as children
+  connectedWallets.forEach((child, index) => {
+    const childId = `${parentId}_child_${index}`;
+    const childWallet = {
+      id: childId,
+      address: child.address.toLowerCase(),
+      name: child.name,
+      blockchain: child.blockchain,
+      addedAt: Date.now(),
+      parentId: parentId,
+      isChild: true
+    };
+    wallets.push(childWallet);
+    parent.children.push(childId);
+  });
+  
+  wallets.push(parent);
+  saveTrackedWallets(wallets);
+  return parent;
+};

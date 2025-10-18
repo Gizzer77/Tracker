@@ -3,6 +3,7 @@ import { formatNumber, formatTime, getBlockchainColor, getWalletName, analyzeTra
 
 const TransactionCard = ({ transaction }) => {
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState(null);
   const blockchainColor = getBlockchainColor(transaction.blockchain);
   const analysis = analyzeTransaction(transaction);
   
@@ -10,6 +11,63 @@ const TransactionCard = ({ transaction }) => {
   const fromName = getWalletName(transaction.from.address);
   const toName = getWalletName(transaction.to.address);
   const isTracked = fromName || toName;
+
+  // Copy address to clipboard
+  const copyAddress = (address, label) => {
+    navigator.clipboard.writeText(address).then(() => {
+      setCopiedAddress(label);
+      setTimeout(() => setCopiedAddress(null), 2000);
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+      alert(`Address: ${address}`);
+    });
+  };
+
+  // Determine transaction action type
+  const getActionType = () => {
+    const { from, to } = transaction;
+    const isFromExchange = from.owner !== 'unknown' && 
+      ['binance', 'coinbase', 'kraken', 'bitfinex', 'huobi'].some(ex => 
+        from.owner.toLowerCase().includes(ex)
+      );
+    
+    const isToExchange = to.owner !== 'unknown' && 
+      ['binance', 'coinbase', 'kraken', 'bitfinex', 'huobi'].some(ex => 
+        to.owner.toLowerCase().includes(ex)
+      );
+
+    if (isFromExchange && !isToExchange) {
+      return { 
+        type: 'WITHDRAW TO HOLD', 
+        color: '#10b981', 
+        icon: '📤', 
+        description: 'Moving OFF exchange → Long-term holding (BULLISH 🟢)' 
+      };
+    } else if (!isFromExchange && isToExchange) {
+      return { 
+        type: 'DEPOSIT TO SELL', 
+        color: '#ef4444', 
+        icon: '📥', 
+        description: 'Moving TO exchange → Preparing to sell (BEARISH 🔴)' 
+      };
+    } else if (isFromExchange && isToExchange) {
+      return { 
+        type: 'EXCHANGE TRANSFER', 
+        color: '#f59e0b', 
+        icon: '🔀', 
+        description: 'Moving between exchanges (Arbitrage/Rebalancing)' 
+      };
+    } else {
+      return { 
+        type: 'WALLET TRANSFER', 
+        color: '#6b7280', 
+        icon: '💼', 
+        description: 'Private wallet movement (OTC deal or internal)' 
+      };
+    }
+  };
+
+  const actionType = getActionType();
   
   return (
     <div className={`transaction-card ${isTracked ? 'tracked-transaction' : ''}`}>
@@ -26,11 +84,13 @@ const TransactionCard = ({ transaction }) => {
         <span className="transaction-time">{formatTime(transaction.timestamp)}</span>
       </div>
 
-      <div className="transaction-summary-badge">
-        <span className="summary-icon">{analysis.icon}</span>
-        <span className={`summary-text signal-${analysis.signal}`}>
-          {analysis.shortSummary}
-        </span>
+      {/* CLEAR ACTION TYPE BADGE */}
+      <div className="action-type-badge" style={{ backgroundColor: actionType.color }}>
+        <span className="action-icon">{actionType.icon}</span>
+        <div className="action-info">
+          <div className="action-type">{actionType.type}</div>
+          <div className="action-description">{actionType.description}</div>
+        </div>
       </div>
 
       <div className="transaction-amount">
@@ -45,7 +105,11 @@ const TransactionCard = ({ transaction }) => {
       <div className="transaction-addresses">
         <div className="address-row">
           <span className="label">From:</span>
-          <span className={`address ${fromName ? 'tracked-address' : ''}`}>
+          <span 
+            className={`address ${fromName ? 'tracked-address' : ''} clickable-address`}
+            onClick={() => copyAddress(transaction.from.address, 'from')}
+            title="Click to copy address"
+          >
             {fromName ? (
               <strong>🏷️ {fromName}</strong>
             ) : transaction.from.owner !== 'unknown' ? (
@@ -53,12 +117,17 @@ const TransactionCard = ({ transaction }) => {
             ) : (
               <code>{transaction.from.address.substring(0, 10)}...</code>
             )}
+            {copiedAddress === 'from' && <span className="copied-tooltip">✓ Copied!</span>}
           </span>
         </div>
         <div className="arrow">↓</div>
         <div className="address-row">
           <span className="label">To:</span>
-          <span className={`address ${toName ? 'tracked-address' : ''}`}>
+          <span 
+            className={`address ${toName ? 'tracked-address' : ''} clickable-address`}
+            onClick={() => copyAddress(transaction.to.address, 'to')}
+            title="Click to copy address"
+          >
             {toName ? (
               <strong>🏷️ {toName}</strong>
             ) : transaction.to.owner !== 'unknown' ? (
@@ -66,6 +135,7 @@ const TransactionCard = ({ transaction }) => {
             ) : (
               <code>{transaction.to.address.substring(0, 10)}...</code>
             )}
+            {copiedAddress === 'to' && <span className="copied-tooltip">✓ Copied!</span>}
           </span>
         </div>
       </div>
@@ -86,6 +156,12 @@ const TransactionCard = ({ transaction }) => {
           
           <div className="analysis-details">
             <div className="detail-row">
+              <span className="detail-label">Action:</span>
+              <span className="detail-value" style={{ color: actionType.color }}>
+                {actionType.type}
+              </span>
+            </div>
+            <div className="detail-row">
               <span className="detail-label">Signal:</span>
               <span className={`detail-value signal-badge-${analysis.signal}`}>
                 {analysis.signal.toUpperCase()}
@@ -98,6 +174,32 @@ const TransactionCard = ({ transaction }) => {
               </span>
             </div>
           </div>
+
+          {/* FULL ADDRESSES - CLICK TO COPY */}
+          <div className="full-addresses">
+            <div className="full-address-row">
+              <span className="address-label">From Address:</span>
+              <code 
+                className="full-address-code"
+                onClick={() => copyAddress(transaction.from.address, 'from-full')}
+                title="Click to copy full address"
+              >
+                {transaction.from.address}
+                {copiedAddress === 'from-full' && <span className="copied-tooltip">✓ Copied!</span>}
+              </code>
+            </div>
+            <div className="full-address-row">
+              <span className="address-label">To Address:</span>
+              <code 
+                className="full-address-code"
+                onClick={() => copyAddress(transaction.to.address, 'to-full')}
+                title="Click to copy full address"
+              >
+                {transaction.to.address}
+                {copiedAddress === 'to-full' && <span className="copied-tooltip">✓ Copied!</span>}
+              </code>
+            </div>
+          </div>
         </div>
       )}
 
@@ -107,7 +209,7 @@ const TransactionCard = ({ transaction }) => {
           className="view-link"
           onClick={(e) => {
             e.preventDefault();
-            const info = `🔍 Transaction Details\n\n${analysis.icon} ${analysis.shortSummary}\n\n📊 Analysis:\n${analysis.description}\n\n💰 Amount: ${formatNumber(transaction.amount)} ${transaction.symbol}\n💵 Value: $${formatNumber(transaction.amount_usd)}\n\n🔗 Hash: ${transaction.hash}\n\n📤 From: ${transaction.from.address}\n📥 To: ${transaction.to.address}`;
+            const info = `🔍 Transaction Details\n\n${actionType.icon} ${actionType.type}\n${actionType.description}\n\n📊 Analysis:\n${analysis.description}\n\n💰 Amount: ${formatNumber(transaction.amount)} ${transaction.symbol}\n💵 Value: $${formatNumber(transaction.amount_usd)}\n\n🔗 Hash: ${transaction.hash}\n\n📤 From: ${transaction.from.address}\n📥 To: ${transaction.to.address}`;
             alert(info);
           }}
         >
