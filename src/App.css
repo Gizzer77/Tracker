@@ -1,38 +1,951 @@
-.App {
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+.app {
+  min-height: 100vh;
+  padding-bottom: 2rem;
+}
+
+/* Header */
+.app-header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 2rem 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.app-header h1 {
+  font-size: 2.5rem;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.app-header p {
+  color: #6b7280;
+  font-size: 1.1rem;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+/* Demo/Live Mode Notices */
+.demo-notice {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.live-notice {
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Container */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Wallet Tracker */
+.wallet-tracker {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.wallet-tracker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.wallet-tracker-header h3 {
+  color: #1f2937;
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.add-wallet-btn {
+  padding: 0.5rem 1rem;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-wallet-btn:hover {
+  background: #059669;
+  transform: translateY(-2px);
+}
+
+/* Add Wallet Form */
+.add-wallet-form {
+  background: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 2px solid #e5e7eb;
+}
+
+.wallet-input, .wallet-select {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.wallet-input:focus, .wallet-select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.5rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.save-wallet-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.save-wallet-btn:hover {
+  background: #5568d3;
+}
+
+/* Tracked Wallets List */
+.tracked-wallets-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tracked-wallet-item {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 2px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.tracked-wallet-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.wallet-info {
+  flex: 1;
+}
+
+.wallet-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.wallet-name strong {
+  color: #1f2937;
+  font-size: 1rem;
+}
+
+.wallet-chain-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.wallet-address {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-family: monospace;
+}
+
+.remove-wallet-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.remove-wallet-btn:hover {
+  background: #dc2626;
+}
+
+.no-wallets {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+}
+
+/* Filter Bar */
+.filter-bar {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.filter-group select {
+  padding: 0.5rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.filter-group select:hover {
+  border-color: #667eea;
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.refresh-btn {
+  padding: 0.5rem 1.5rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: auto;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Stats */
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.stat-label {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  color: #1f2937;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.blockchain-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.blockchain-stat {
+  background: #f3f4f6;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Market Insights */
+.market-insights {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.insights-header h3 {
+  color: #1f2937;
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.sentiment-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.sentiment-indicator {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sentiment-icon {
+  font-size: 3rem;
+}
+
+.sentiment-label {
+  font-size: 0.875rem;
+  opacity: 0.9;
+  margin-bottom: 0.25rem;
+}
+
+.sentiment-value {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.sentiment-bullish {
+  color: #10b981;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.sentiment-bearish {
+  color: #ef4444;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.sentiment-neutral {
+  color: #f3f4f6;
+}
+
+.sentiment-interpretation {
+  font-size: 1rem;
+  line-height: 1.6;
+  opacity: 0.95;
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.insight-card {
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  padding: 1.5rem;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.insight-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.insight-card.positive {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.insight-card.negative {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+.insight-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.insight-content {
   display: flex;
   flex-direction: column;
+  gap: 0.25rem;
+}
+
+.insight-label {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.insight-value {
+  color: #1f2937;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.insight-detail {
+  color: #374151;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.insight-note {
+  color: #6b7280;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
+.insights-explanation {
+  background: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.insights-explanation h4 {
+  color: #1f2937;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.insights-explanation ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.insights-explanation li {
+  color: #374151;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+  padding-left: 1.5rem;
+  position: relative;
+}
+
+.insights-explanation li:before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #667eea;
+  font-weight: 700;
+}
+
+.insights-explanation strong {
+  color: #1f2937;
+}
+
+/* Transactions Section */
+.transactions-section {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.section-header h2 {
+  color: #1f2937;
+  font-size: 1.5rem;
+}
+
+.transaction-count {
+  background: #667eea;
   color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
-.App-link {
-  color: #61dafb;
+/* Transaction Grid */
+.transactions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
+/* Transaction Card */
+.transaction-card {
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.transaction-card:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Tracked Transaction Styling */
+.tracked-transaction {
+  border: 3px solid #10b981 !important;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
+  position: relative;
+}
+
+.tracked-badge {
+  position: absolute;
+  top: -12px;
+  right: 1rem;
+  background: #10b981;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.transaction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.blockchain-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.transaction-time {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+/* Transaction Analysis */
+.transaction-summary-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #f3f4f6;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.summary-icon {
+  font-size: 1.25rem;
+}
+
+.summary-text {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.signal-bullish {
+  color: #10b981;
+}
+
+.signal-bearish {
+  color: #ef4444;
+}
+
+.signal-neutral {
+  color: #6b7280;
+}
+
+.transaction-amount {
+  margin-bottom: 1rem;
+}
+
+.amount-crypto {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.amount-usd {
+  font-size: 1rem;
+  color: #10b981;
+  font-weight: 600;
+}
+
+.transaction-addresses {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #e5e7eb;
+}
+
+.address-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.address-row .label {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-width: 50px;
+}
+
+.address-row .address {
+  color: #1f2937;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.address-row code {
+  background: #f3f4f6;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.arrow {
+  text-align: center;
+  color: #667eea;
+  font-size: 1.5rem;
+  margin: 0.25rem 0;
+}
+
+.tracked-address {
+  color: #10b981 !important;
+  font-weight: 700 !important;
+}
+
+.analysis-toggle {
+  width: 100%;
+  padding: 0.5rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.analysis-toggle:hover {
+  background: #5568d3;
+}
+
+.transaction-analysis {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  background: #f9fafb;
+}
+
+.transaction-analysis.signal-bullish {
+  border-left-color: #10b981;
+  background: #f0fdf4;
+}
+
+.transaction-analysis.signal-bearish {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+
+.analysis-header {
+  margin-bottom: 0.75rem;
+  color: #1f2937;
+  font-size: 0.95rem;
+}
+
+.analysis-description {
+  color: #374151;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.analysis-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.detail-label {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.detail-value {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.signal-badge-bullish {
+  color: #10b981;
+}
+
+.signal-badge-bearish {
+  color: #ef4444;
+}
+
+.signal-badge-neutral {
+  color: #6b7280;
+}
+
+.transaction-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.transaction-type {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.transaction-type.exchange_deposit {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.view-link {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.view-link:hover {
+  color: #5568d3;
+  text-decoration: underline;
+}
+
+/* Loading & Error States */
+.loading {
+  text-align: center;
+  padding: 3rem;
+}
+
+.spinner {
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading p {
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+.error-message {
+  background: #fee2e2;
+  border: 2px solid #ef4444;
+  color: #991b1b;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.no-data {
+  text-align: center;
+  padding: 3rem;
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+/* Footer */
+.app-footer {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: white;
+  margin-top: 3rem;
+}
+
+.app-footer p {
+  margin-bottom: 0.5rem;
+  opacity: 0.9;
+}
+
+.app-footer a {
+  color: white;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.api-note {
+  font-size: 0.875rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .app-header h1 {
+    font-size: 1.75rem;
   }
-  to {
-    transform: rotate(360deg);
+
+  .app-header p {
+    font-size: 0.95rem;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+  }
+
+  .refresh-btn {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .transactions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .wallet-tracker-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .add-wallet-btn {
+    width: 100%;
   }
 }
