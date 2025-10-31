@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { addTrackedWallet, removeTrackedWallet, getBlockchainColor } from '../services/api';
+import { addTrackedWallet, removeTrackedWallet, getBlockchainColor, calculateWalletHoldings } from '../services/api';
 import WalletManager from './WalletManager';
 
 const WalletTracker = ({ trackedWallets, onUpdate, transactions = [] }) => {
@@ -60,6 +60,25 @@ const WalletTracker = ({ trackedWallets, onUpdate, transactions = [] }) => {
 
     return Array.from(connections.values())
       .sort((a, b) => b.totalValue - a.totalValue);
+  };
+
+  const getCombinedHoldings = (parent, children) => {
+    const allWallets = [parent, ...children];
+    const combined = {};
+
+    allWallets.forEach(wallet => {
+      const holdings = calculateWalletHoldings(wallet.address, transactions);
+      holdings.forEach(holding => {
+        if (!combined[holding.symbol]) {
+          combined[holding.symbol] = { ...holding };
+        } else {
+          combined[holding.symbol].amount += holding.amount;
+          combined[holding.symbol].valueUSD += holding.valueUSD;
+        }
+      });
+    });
+
+    return Object.values(combined).sort((a, b) => b.valueUSD - a.valueUSD);
   };
 
   const handleAdd = () => {
@@ -210,6 +229,7 @@ const WalletTracker = ({ trackedWallets, onUpdate, transactions = [] }) => {
             const connections = getWalletConnections(parent);
             const exchanges = connections.filter(c => c.isExchange);
             const wallets = connections.filter(c => !c.isExchange);
+            const combinedHoldings = getCombinedHoldings(parent, children);
             
             return (
               <div key={parent.id} className="wallet-group">
@@ -271,6 +291,22 @@ const WalletTracker = ({ trackedWallets, onUpdate, transactions = [] }) => {
                             </code>
                           </div>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Combined Holdings */}
+                    {combinedHoldings.length > 0 && (
+                      <div className="combined-holdings-section">
+                        <div className="expansion-section-title">💰 Combined Group Assets</div>
+                        <div className="holdings-grid">
+                          {combinedHoldings.map(h => (
+                            <div key={h.symbol} className="holding-item">
+                              <span className="holding-symbol">{h.symbol}</span>
+                              <span className="holding-value">${formatValue(h.valueUSD)}</span>
+                              <span className="holding-amount">{formatValue(h.amount)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 
